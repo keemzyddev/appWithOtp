@@ -1,11 +1,23 @@
-import { Link } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import styles from "../styles/Username.module.css";
-import avatar from "../assets/profile.png";
-import { Toaster } from "react-hot-toast";
+import { toast, Toaster } from "react-hot-toast";
 import { useFormik } from "formik";
 import { resetPasswordValidation } from "../helper/validate";
+import { useAuthStore } from "../store/store";
+import { resetPassword } from "../helper/helper";
+import useFetch from "../hooks/fetchHook";
+import { useEffect } from "react";
 
 const Reset = () => {
+  const navigate = useNavigate();
+  const { username } = useAuthStore((state) => state.auth);
+  const { isLoading, apiData, status, serverError } =
+    useFetch("createResetSession");
+
+  useEffect(() => {
+    console.log(apiData);
+  });
+
   const formik = useFormik({
     initialValues: {
       password: "",
@@ -15,9 +27,25 @@ const Reset = () => {
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      console.log(values);
+      let resetPromise = resetPassword({ username, password });
+
+      toast.promise(resetPromise, {
+        loading: "Updating...",
+        success: <b>Reset Successful</b>,
+        error: <b>Could not reset password</b>,
+      });
+
+      resetPromise.then(() => navigate("/password"));
     },
   });
+
+  if (isLoading) return <h1 className="text-2xl font-bold">Loading...</h1>;
+  if (serverError)
+    return <h1 className="text-xl text-red-500">{serverError.message}</h1>;
+
+  if (status && status !== 201)
+    return <Navigate to={"/password"} replace={true}></Navigate>;
+
   return (
     <div className="container mx-auto">
       <Toaster position="top-center" reverseOrder={false}></Toaster>
@@ -44,7 +72,7 @@ const Reset = () => {
                 className={styles.textbox}
               />
               <button className={styles.btn} type="">
-                Sign In
+                Reset Password
               </button>
             </div>
           </form>

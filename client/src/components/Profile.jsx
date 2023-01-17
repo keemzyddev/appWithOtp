@@ -1,30 +1,43 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import styles from "../styles/Username.module.css";
 import extend from "../styles/Profile.module.css";
 import avatar from "../assets/profile.png";
-import { Toaster } from "react-hot-toast";
+import { toast, Toaster } from "react-hot-toast";
 import { useFormik } from "formik";
 import { profileValidation } from "../helper/validate";
 import { useState } from "react";
 import convertToBase64 from "../helper/convert";
+import useFetch from "../hooks/fetchHook";
+import { useAuthStore } from "../store/store";
+import { updateUser } from "../helper/helper";
 
 const Profile = () => {
+  const navigate = useNavigate();
+  const [{ isLoading, apiData, serverError }] = useFetch();
   const [file, setFile] = useState("");
 
   const formik = useFormik({
     initialValues: {
-      firstname: "",
-      lastname: "",
-      phone: "+",
-      email: "",
-      address: "",
+      firstname: apiData?.firstname || "",
+      lastname: apiData?.lastname || "",
+      phone: apiData?.phone || "+",
+      email: apiData?.email || "",
+      address: apiData?.address || "",
     },
+    enableReinitialize: true,
     validate: profileValidation,
     validateOnBlur: false,
     validateOnChange: false,
     onSubmit: async (values) => {
-      values = Object.assign(values, { profile: file || "" });
-      console.log(values);
+      values = Object.assign(values, {
+        profile: file || apiData?.profile || "",
+      });
+      let updatePromise = updateUser(values);
+      toast.promise(updatePromise, {
+        loading: "Updating...",
+        success: <b>Updated Successfully</b>,
+        error: <b>Could not update</b>,
+      });
     },
   });
 
@@ -32,6 +45,15 @@ const Profile = () => {
     const base64 = await convertToBase64(e.target.files[0]);
     setFile(base64);
   };
+
+  function logout() {
+    localStorage.removeItem("token");
+    navigate("/");
+  }
+
+  if (isLoading) return <h1 className="text-2xl font-bold">Loading...</h1>;
+  if (serverError)
+    return <h1 className="text-xl text-red-500">{serverError.message}</h1>;
 
   return (
     <div className="container mx-auto">
@@ -51,7 +73,7 @@ const Profile = () => {
             <div className="profile flex justify-center py-3">
               <label htmlFor="profile">
                 <img
-                  src={file || avatar}
+                  src={apiData?.profile || file || avatar}
                   alt="avatar"
                   className={`${styles.profile_img} ${extend.profile_img}`}
                 />
@@ -100,16 +122,16 @@ const Profile = () => {
                 className={`${styles.textbox} ${extend.textbox}`}
               />
               <button className={styles.btn} type="">
-                Register
+                Update
               </button>
             </div>
 
             <div className="text-center py-4">
               <span className="text-green-500">
                 Come back later
-                <Link to="/" className="text-red-500 px-1">
+                <button onClick={logout} className="text-red-500 px-1">
                   Logout
-                </Link>
+                </button>
               </span>
             </div>
           </form>
